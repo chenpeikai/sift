@@ -57,13 +57,12 @@ Mat* read_bmp(char* path){
 
     fseek(img_stream, 2, SEEK_SET); //skip BM
     fread(&header, sizeof(struct BmpHeader), 1, img_stream); // read the image header
-    print_header(header);
+    //print_header(header);
 
 
     U16 height = header.ImageHight;
     U16 width = header.ImageWidth;
     U8 bytes = header.BPP / 8;
-    //img->buffer = malloc(header.ImageSize); //allocate memory for image
     Mat* img = init_mat(height, width, 0, bytes);
 
     fseek(img_stream, header.FileOffset, SEEK_SET);
@@ -77,7 +76,7 @@ Mat* read_bmp(char* path){
 }
 /*the byte of one line must be multiple of 4*/
 Mat* four_byte(Mat* image){
-    if(image->channels = 1){
+    if(image->channels == 1){
         if(image->width %4 != 0){
             U16 width = (image->width + 3)/4*4;
             U16 height = image->height;
@@ -100,7 +99,25 @@ Mat* four_byte(Mat* image){
 
     }
     else{
-        return image;
+        if(image->width %4 != 0){
+            U16 width = (image->width + 3)/4*4;
+            U16 height = image->height;
+            Mat* new_image = init_mat(height, width, 0, image->bytes);
+            RGB* old_pointer = image->buffer;
+
+            for(int row = 0; row<height; row++){
+                for(int col = width - image->width; col < width; col++){
+                    RGB* to = locate(new_image, row, col);
+                    *to = *old_pointer;
+                    old_pointer++;
+                }
+            }
+            free_mat(image);
+            return new_image;
+        }
+        else{
+            return image;
+        }
     }
 }
 
@@ -131,7 +148,7 @@ int write_bmp(Mat* image, char* path){
     header.XPPM = 0;
     header.YPPM = 0;
 
-    print_header(header);
+    //print_header(header);
     fwrite(BM,sizeof(U8),2, img_stream);
     fwrite(&header,sizeof(BmpHeader),1, img_stream);
     //for gray image we need to write the Palette

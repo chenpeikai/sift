@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "mat.h"
 #include "bmp.h"
+#include <math.h>
 /*only process one channels*/
 
 void free_mat(Mat* image){
@@ -120,7 +121,7 @@ Mat* conv(Mat* image, Mat* patch, U8 stride, U8 padding){
     float* pointer = new_image->buffer;
     for(int row=kernal_size/2;row < big_image->height - kernal_size/2; row = row + stride){
         for(col = kernal_size/2; col < big_image->width - kernal_size/2; col = col + stride){
-            float res = MIN(dot(big_image, patch, row,col),255);
+            float res = dot(big_image, patch, row,col);
             *pointer = res;
             pointer++;
         }
@@ -223,5 +224,42 @@ void mat_abs(Mat* float_image){
             float* pointer = locate(float_image,row,col);
             *pointer = ABS(*pointer);
         }
+    }
+}
+
+void normalize_image(Mat* image){
+    U16 height = image->height;
+    U16 width = image->width;
+    float max = -5000;
+    float min = 5000;
+    for(int row=0;row<height; row++){
+        for(int col=0; col< width;col++){
+            float* pointer = locate(image,row,col);
+
+            if(*pointer > max)
+                max = *pointer;
+            else if(*pointer < min)
+                min = *pointer;
+        }
+    }
+
+    for(int row=0;row<height; row++){
+        for(int col=0; col< width;col++){
+            float* pointer = locate(image,row,col);
+            *pointer = 255*(*pointer - min)/(max - min);
+        }
+    }
+}
+
+void print_mat(Mat* mat){
+    U16 height = mat->height;
+    U16 width = mat->width;
+ printf("\n\n");
+    for(int row=0;row<height; row++){
+        for(int col=0; col< width;col++){
+            float* pointer = locate(mat,row,col);
+            printf("%f \t",*pointer);
+        }
+        printf("\n");
     }
 }

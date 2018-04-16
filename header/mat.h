@@ -29,4 +29,6 @@ void* locate(Mat* image, U16 row, U16 col);
 Mat* uchar2float(Mat* uchar_image);
 Mat* float2uchar(Mat* float_image);
 void mat_abs(Mat* float_image);
+void normalize_image(Mat* image);
+void print_mat(Mat* mat);
 #endif
