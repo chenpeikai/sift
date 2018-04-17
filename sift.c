@@ -30,42 +30,53 @@ Mat* gaussian_kernel(U8 radius, float sigma){
             *pointer = gaussian(sigma, r);
         }
     }
-    /*Normalized the data*/
-    /*float sum = 0;
-    for(int row = 0; row<height;row++){
-        for(int col = 0; col < width; col++){
-            pointer = locate(kernel, row, col);
-            sum = sum + *pointer;
-        }
-    }
-
-    for(int row = 0; row<height;row++){
-        for(int col = 0; col < width; col++){
-            pointer = locate(kernel, row, col);
-            *pointer = *pointer/sum;
-        }
-    }*/
     return kernel;
 }
-
-bool check_max(Mat* scala_space[],U8 level,U16 row,U16 col){
+/*check if this point is extreme point*/
+bool check_extreme(Mat* scala_space[],U8 level,U16 row,U16 col){
     if(level == 0 || level == 3){
         fprintf(stderr,"check_max level error");
         return false;
     }
+    U8 threshold = 1;
+    U8 is_extreme = true;
+
     float* origin = locate(scala_space[level], row, col);
+    /*check maxmum*/
     for(U8 k = level -1;k < level + 2; k++){
         for(U16 i = row - 1;i < row + 2;i++){
             for(U16 j = col - 1;j < col + 2;j++){
                 if(i == row && j == col && k == level)
                     continue;
                 float* compare = locate(scala_space[k], i, j);
-                if(*compare < *origin + 5)
-                    return false;
+                if(*compare > *origin - threshold)
+                    //return false;
+                    is_extreme = false;
             }
         }
+        if(is_extreme == false)
+            break;
     }
-    return true;
+    if(is_extreme == false)
+        is_extreme = true;
+    else
+        return is_extreme;
+    /*check minmum*/
+    for(U8 k = level -1;k < level + 2; k++){
+        for(U16 i = row - 1;i < row + 2;i++){
+            for(U16 j = col - 1;j < col + 2;j++){
+                if(i == row && j == col && k == level)
+                    continue;
+                float* compare = locate(scala_space[k], i, j);
+                if(*compare < *origin + threshold)
+                    is_extreme = false;
+            }
+        }
+        if(is_extreme == false)
+            break;
+    }
+
+    return is_extreme;
 }
 
 List* local_max(Mat** scala_space){
@@ -76,7 +87,7 @@ List* local_max(Mat** scala_space){
     for(U8 k = 1; k < length - 1; k++){
         for(U16 row = 1; row< height-1; row++){
             for(U16 col=1; col < width-1; col++){
-                if(check_max(scala_space, k,row,col))
+                if(check_extreme(scala_space, k,row,col))
                     push(key_points,init_point(row,col));
             }
         }
@@ -95,12 +106,12 @@ Mat* get_dog_kernel(U8 radius, float sigma1, float sigma2){
         }
     }
     float* mid = locate(kernel, radius, radius);
-    *mid = *mid - sum;
+    //*mid = *mid - sum;
     return kernel;
 }
 
 List* Dog(Mat* image){
-    float sigma = 0.2;
+    float sigma = 0.3;
     int scale = 4;
     U8 radius = 2;
 
@@ -129,7 +140,7 @@ void plot_points(Mat* color_image, List* key_points){
         return;
     }
     RGB red;
-    red.R = 255;
+    red.G = 255;
     U16 height = color_image->height;
     U16 width = color_image->width;
 
