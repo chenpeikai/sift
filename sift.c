@@ -1,159 +1,190 @@
 #include "mat.h"
-#include <math.h>
+#include "type.h"
+#include "stdio.h"
+#include "math.h"
 #include "sift.h"
-#include <stdio.h>
-#include <stdbool.h>
+#include "dector.h"
 #include "bmp.h"
-#define PI 3.14
+#include <stdlib.h>
 
+Mat* vertical_diff(Mat* image){
+    if(image->channels != 1 || image->bytes != Float){
+        fprintf(stderr,"channels or bytes isn't correct");
+    }
 
-Point* init_point(U16 row, U16 col){
-    Point* point = malloc(sizeof(Point));
-    point->col = col;
-    point->row = row;
+    Mat* kernel = init_mat(3,3,0,Float);
+    float* pointer = kernel->buffer;
+    pointer[0] = -1;pointer[1] = -2;pointer[2] = -1;pointer[6] = 1;pointer[7] = 2;pointer[8] = 1;
+
+    Mat* res = conv(image, kernel, 1, 1);
+    return res;
 }
 
-float gaussian(float sigma, float r){
-   return exp(-pow(r,2) / (2*pow(sigma,2))) / (2*PI*sigma);
+Mat* horizon_diff(Mat* image){
+    if(image->channels != 1 || image->bytes != Float){
+        fprintf(stderr,"channels or bytes isn't correct");
+    }
+
+    Mat* kernel = init_mat(3,3,0,Float);
+    float* pointer = kernel->buffer;
+    pointer[0] = -1;pointer[3] = -2;pointer[6] = -1;pointer[2] = 1;pointer[5] = 2;pointer[8] = 1;
+
+    Mat* res = conv(image, kernel, 1, 1);
+    return res;
 }
 
-Mat* gaussian_kernel(U8 radius, float sigma){
-    U16 height = 2*radius + 1;
-    U16 width = 2*radius + 1;
-    Mat* kernel = init_mat(height, width, 0,Float);
-    float* pointer;
+Mat* gradient_abs(Mat* image){
+    if(image->channels != 1 || image->bytes != Float){
+        fprintf(stderr,"channels or bytes isn't correct");
+    }
+    Mat* h_diff = horizon_diff(image);
+    Mat* v_diff = vertical_diff(image);
+    U16 height = image->height;
+    U16 width = image->width;
+    Mat* abs_diff = init_mat(height, width, 0, Float);
 
-    for(int row = 0; row<height;row++){
-        for(int col = 0; col < width; col++){
-            pointer = locate(kernel, row, col);
-            float r = sqrt(pow(row - radius,2) + pow(col - radius,2))/radius;
-            *pointer = gaussian(sigma, r);
+    for(U16 row=0;row<height;row++){
+        for(U16 col=0;col<width;col++){
+            float* src1 = locate(h_diff, row, col);
+            float* src2 = locate(v_diff, row, col);
+            float* to = locate(abs_diff, row, col);
+
+            *to = sqrt(pow(*src1, 2) + pow(*src2, 2));
         }
     }
-    return kernel;
-}
-/*check if this point is extreme point*/
-bool check_extreme(Mat* scala_space[],U8 level,U16 row,U16 col){
-    if(level == 0 || level == 3){
-        fprintf(stderr,"check_max level error");
-        return false;
-    }
-    U8 threshold = 1;
-    U8 is_extreme = true;
-
-    float* origin = locate(scala_space[level], row, col);
-    /*check maxmum*/
-    for(U8 k = level -1;k < level + 2; k++){
-        for(U16 i = row - 1;i < row + 2;i++){
-            for(U16 j = col - 1;j < col + 2;j++){
-                if(i == row && j == col && k == level)
-                    continue;
-                float* compare = locate(scala_space[k], i, j);
-                if(*compare > *origin - threshold)
-                    //return false;
-                    is_extreme = false;
-            }
-        }
-        if(is_extreme == false)
-            break;
-    }
-    if(is_extreme == false)
-        is_extreme = true;
-    else
-        return is_extreme;
-    /*check minmum*/
-    for(U8 k = level -1;k < level + 2; k++){
-        for(U16 i = row - 1;i < row + 2;i++){
-            for(U16 j = col - 1;j < col + 2;j++){
-                if(i == row && j == col && k == level)
-                    continue;
-                float* compare = locate(scala_space[k], i, j);
-                if(*compare < *origin + threshold)
-                    is_extreme = false;
-            }
-        }
-        if(is_extreme == false)
-            break;
-    }
-
-    return is_extreme;
+    return abs_diff;
 }
 
-List* local_max(Mat** scala_space){
-    U16 length = 4;
-    List* key_points = init_List(sizeof(Point));
-    U16 height = scala_space[0]->height;
-    U16 width = scala_space[0]->width;
-    for(U8 k = 1; k < length - 1; k++){
-        for(U16 row = 1; row< height-1; row++){
-            for(U16 col=1; col < width-1; col++){
-                if(check_extreme(scala_space, k,row,col))
-                    push(key_points,init_point(row,col));
+Mat* gradient_direction(Mat* image){
+    if(image->channels != 1 || image->bytes != Float){
+        fprintf(stderr,"channels or bytes isn't correct");
+    }
+    Mat* h_diff = horizon_diff(image);
+    Mat* v_diff = vertical_diff(image);
+    U16 height = image->height;
+    U16 width = image->width;
+    Mat* abs_diff = init_mat(height, width, 0, Float);
+
+    for(U16 row=0;row<height;row++){
+        for(U16 col=0;col<width;col++){
+            float* src1 = locate(h_diff, row, col);
+            float* src2 = locate(v_diff, row, col);
+            float* to = locate(abs_diff, row, col);
+
+            *to = atan(*src2/(*src1));
+            if((*src2) < 0 && (*src1) < 0)
+                *to = *to + PI;
+            else if(*src1 < 0 ||*src1 < 0 ){
+                *to = *to + PI;
             }
         }
     }
-    return key_points;
+    return abs_diff;
+}
+float main_direction(){
+    return 0;
 }
 
-Mat* get_dog_kernel(U8 radius, float sigma1, float sigma2){
-    Mat* kernel = image_sub(gaussian_kernel(radius,sigma1),
-                     gaussian_kernel(radius,sigma2));
-    float sum = 0;
-    for(U16 row = 0; row < 2*radius + 1; row++){
-        for(U16 col=0; col < 2*radius + 1; col++){
-            float* pointer = locate(kernel, row, col);
-            sum = sum + *pointer;
+void count_small(Mat* gradient, Mat* abs,
+                 U16 row, U16 col, U8 k, SiftVector sift){
+    for(U16 i = 0; i < 2; i ++ ){
+        for(U16 j = 0;j < 2;j ++ ){
+            float* src1 = locate(gradient, i,j);
+            U8 index = (*src1)/(PI/4);
+            index = index + k*8;
+            float* src2= locate(abs, i,j);
+            sift[index] = *src2;
         }
     }
-    float* mid = locate(kernel, radius, radius);
-    //*mid = *mid - sum;
-    return kernel;
 }
 
-List* Dog(Mat* image){
-    float sigma = 0.3;
-    int scale = 4;
-    U8 radius = 2;
-
-    Mat** scale_space = malloc(sizeof(Mat*));
-    for(int k = 1; k <scale+1; k++){
-        Mat* dog_kernel = get_dog_kernel(radius,sigma*2,sigma);
-        sigma = sigma*2;
-        print_mat(dog_kernel);
-        scale_space[k-1] = conv(image, dog_kernel, 1, dog_kernel->height/2); // keep the scale is the same as the origin image
+SiftVector sift_point(Mat* gradient, Mat* abs, U16 row, U16 col){
+    if(row < 4 || row > abs->height - 4 || col < 4 || col > abs->width - 4){
+        fprintf(stderr,"error sift");
+        exit(0);
+        return NULL;
     }
-    List* key_point = local_max(scale_space);
-
-
-    for(int i = 0; i < 4; i++){
-        normalize_image(scale_space[i]);
-        Mat* img = float2uchar(scale_space[i]);
-        char path[20];
-        sprintf(path,"level-%d.bmp",(i+1));
-        write_bmp(img, path);
-    }
-    return key_point;
-}
-
-void plot_points(Mat* color_image, List* key_points){
-    if(color_image->channels != 3){
-        return;
-    }
-    RGB red;
-    red.G = 255;
-    U16 height = color_image->height;
-    U16 width = color_image->width;
-
-    for(Node* pointer = key_points->start; pointer != NULL; pointer = pointer->next){
-        Point* point = pointer->data;
-        RGB* to = locate(color_image, point->row, point->col);
-        if(point->row > 1 && point->row < height- 2
-                && point->col > 1&& point->col < width -2){
-            *to = red;
-            *(to - 1) = red;
-            *(to + 1) = red;
-            *(to + width) = red;
-            *(to - width) = red;
+    SiftVector sift = malloc(128*sizeof(float));
+    U8 k = 0;
+    for(U16 i = row - 3 ; i < row + 5 ; i = i+ 2){
+        for(U16 j = col - 3; j< col + 5; j = j + 2){
+            count_small(gradient, abs, i,j,k,sift);
+            k++;
         }
     }
+    return sift;
+}
+
+List* sift_describe(Mat* image, List* key_points){
+    static num = 1;
+    List* sift_list = init_List(sizeof(SiftVector));
+    Mat* abs_diff = gradient_abs(image);
+    Mat* direction_diff= gradient_direction(image);
+
+    for(Node* node = key_points;node != NULL; node = node->next){
+        Point* point = node->data;
+        U16 row = point->row;
+        U16 col = point->col;
+        if(row < 4 || row > abs_diff->height - 4 || col < 4
+                || col > abs_diff->width - 4)
+            continue;
+        SiftVector sift = sift_point(direction_diff, abs_diff, row,col);
+        push(sift_list, sift);
+    }
+    num++;
+
+    normalize_image(abs_diff);
+    Mat* img = float2uchar(abs_diff);
+    char path[20];
+    sprintf(path,"diff_abs%d.bmp",num);
+    write_bmp(img,path);
+    free_mat(img);
+
+    normalize_image(direction_diff);
+    img = float2uchar(direction_diff);
+    sprintf(path,"direction_diff%d.bmp",num);
+    write_bmp(img,path);
+    free_mat(img);
+    free_mat(abs_diff);
+    free_mat(direction_diff);
+
+    return sift_list;
+}
+
+float vector_dot(SiftVector sift1, SiftVector sift2){
+    float dot_sum = 0;
+    float sum1 = 0;
+    float sum2 = 0;
+    for(U8 i=0;i<128;i++){
+        dot_sum = dot_sum + sift1[i]*sift2[i];
+        sum1 = sum1 + pow(sift1[i],2);
+        sum2 = sum2 + pow(sift2[i],2);
+    }
+
+    return dot_sum/(sqrt(sum1)*sqrt(sum2));
+}
+
+List* match(List* key_points1, List* key_points2,
+            List* sift_list1, List* sift_list2){
+    List* match_list = init_List(sizeof(Pair));
+    Node* l1 = sift_list1->start;
+    Node* l2 = sift_list2->start;
+    float max = -2;
+    //Point* max_point;
+    for(Node* p_node1 = key_points1->start; p_node1 != NULL; p_node1=p_node1->next){
+        Pair* match_pair;
+        for(Node* p_node2 = key_points2->start; p_node2 != NULL; p_node2=p_node2->next){
+            float res = vector_dot(l1->data, l2->data);
+            match_pair = malloc(sizeof(Pair));
+            if(res > max){
+                match_pair->p1 = *((Point*)p_node1->data);
+                match_pair->p2 = *((Point*)p_node2->data);
+            }
+            l2 = l2->next;
+
+        }
+        push(match_list,match_pair);
+        l1 = l1->next;
+    }
+    return match_list;
 }

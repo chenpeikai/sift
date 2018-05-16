@@ -1,5 +1,6 @@
 ﻿#include <stdio.h>
 #include "bmp.h"
+#include "dector.h"
 #include "sift.h"
 int main()
 {
@@ -19,6 +20,6 @@ int main()
     List* key_points2 = Dog(float_image); // find the key point
     plot_points(color_image, key_points2); // plot the key point
     write_bmp(color_image,"point1.bmp");
-
+    List* sift = sift_describe(float_image,key_points2);
     return 0;
 }

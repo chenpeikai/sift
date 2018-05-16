@@ -7,6 +7,7 @@ typedef  unsigned int   U32 ;
 #define MAX(a,b)  (((a)>(b))?(a):(b))
 #define MIN(a,b)  (((a)>(b))?(b):(a))
 #define ABS(a)    MAX(a,0)
+#define PI 3.14
 
 
 

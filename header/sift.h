@@ -1,14 +1,15 @@
 #ifndef __SIFT__
 #define __SIFT__
-#include "type.h"
-typedef struct Point{
-    U16 row;
-    U16 col;
-}Point;
+#include "dector.h"
+typedef float* SiftVector;
+typedef struct Pair{
+   Point p1;
+   Point p2;
+}Pair;
 
-float gaussian(float sigma, float r);
-Mat* gaussian_kernel(U8 radius, float sigma);
-List* Dog(Mat* image);
-Mat* get_dog_kernel(U8 radius, float sigma1, float sigma2);
-void plot_points(Mat* color_image, List* key_points);
+Mat* horizon_diff(Mat* image);
+Mat* vertical_diff(Mat* image);
+Mat* gradient_abs(Mat* image);
+Mat* gradient_direction(Mat* image);
+List* sift_describe(Mat* image, List* key_points);
 #endif
